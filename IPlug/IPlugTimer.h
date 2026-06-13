@@ -95,6 +95,18 @@ private:
   long ID = 0;
   ITimerFunction mTimerFunc;
 };
+#elif defined OS_LINUX
+class Timer_impl : public Timer
+{
+public:
+  Timer_impl(ITimerFunction func, uint32_t intervalMs);
+  ~Timer_impl();
+  void Stop() override;
+
+private:
+  ITimerFunction mTimerFunc;
+  uint32_t mIntervalMs;
+};
 #else
   #error NOT IMPLEMENTED
 #endif
