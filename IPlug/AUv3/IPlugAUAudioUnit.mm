@@ -570,8 +570,8 @@ static AUAudioUnitPreset* NewAUPreset(NSInteger number, NSString* pName)
     
     if (frameCount > pPlug->GetBlockSize())
     {
-      err = kAudioUnitErr_InvalidPropertyValue;
-      return err;
+      pPlug->Prepare(pPlug->GetSampleRate(), frameCount);
+      pPlug->OnReset();
     }
     
     for (auto busIdx = 0; busIdx < inputBuses->GetSize(); busIdx++)

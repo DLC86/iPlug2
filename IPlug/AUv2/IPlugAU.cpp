@@ -1594,9 +1594,16 @@ OSStatus IPlugAU::RenderProc(void* pPlug, AudioUnitRenderActionFlags* pFlags, co
   
   _this->mLastRenderTimeStamp = *pTimestamp;
 
-  if (!(pTimestamp->mFlags & kAudioTimeStampSampleTimeValid) /*|| outputBusIdx >= _this->mOutBuses.GetSize()*/ || nFrames > _this->GetBlockSize())
+  if (!(pTimestamp->mFlags & kAudioTimeStampSampleTimeValid) /*|| outputBusIdx >= _this->mOutBuses.GetSize()*/)
   {
     return kAudioUnitErr_InvalidPropertyValue;
+  }
+
+  if (nFrames > _this->GetBlockSize())
+  {
+    _this->SetBlockSize(nFrames);
+    _this->ResizeScratchBuffers();
+    _this->OnReset();
   }
 
   int nRenderNotify = _this->mRenderNotify.GetSize();

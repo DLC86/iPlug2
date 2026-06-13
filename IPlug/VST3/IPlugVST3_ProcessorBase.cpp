@@ -348,6 +348,14 @@ void IPlugVST3ProcessorBase::ProcessParameterChanges(ProcessData& data, IPlugQue
 void IPlugVST3ProcessorBase::ProcessAudio(ProcessData& data, ProcessSetup& setup, const BusList& ins, const BusList& outs)
 {
   int32 sampleSize = setup.symbolicSampleSize;
+
+  if (data.numSamples > GetBlockSize())
+  {
+    setup.maxSamplesPerBlock = data.numSamples;
+    IPlugProcessor::SetBlockSize(data.numSamples);
+    mMidiOutputQueue.Resize(data.numSamples);
+    OnReset();
+  }
     
   if (sampleSize == kSample32 || sampleSize == kSample64)
   {

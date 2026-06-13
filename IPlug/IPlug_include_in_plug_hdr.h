@@ -104,7 +104,8 @@ END_IPLUG_NAMESPACE
   #define BUNDLE_ID BUNDLE_DOMAIN "." BUNDLE_MFR "." BUNDLE_NAME API_EXT2
   #define EXPORT __attribute__ ((visibility("default")))
 #elif defined OS_LINUX
-  //TODO:
+  #define BUNDLE_ID BUNDLE_DOMAIN "." BUNDLE_MFR "." API_EXT "." BUNDLE_NAME API_EXT2
+  #define EXPORT __attribute__ ((visibility("default")))
 #elif defined OS_WEB
   #define BUNDLE_ID ""
 #else
