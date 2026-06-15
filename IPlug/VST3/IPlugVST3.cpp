@@ -22,6 +22,8 @@ using namespace iplug;
 using namespace Steinberg;
 using namespace Vst;
 
+
+
 #include "IPlugVST3_Parameter.h"
 
 #pragma mark - IPlugVST3 Constructor/Destructor
@@ -84,19 +86,59 @@ tresult PLUGIN_API IPlugVST3::setupProcessing(ProcessSetup& newSetup)
 {
   TRACE
 
-  return SetupProcessing(newSetup, processSetup) ? kResultOk : kResultFalse;
+  // Cubase switches processSetup.processMode for offline rendering.
+  // Set the IPlug offline flag before OnReset(), so the plug-in applies the
+  // offline oversampling/filter path before reporting latency.
+  SetRenderingOffline(newSetup.processMode == kOffline);
+
+  const bool ok = SetupProcessing(newSetup, processSetup);
+
+  if (!ok)
+    return kResultFalse;
+
+  OnReset();
+
+  if (componentHandler)
+  {
+    FUnknownPtr<IComponentHandler> handler(componentHandler);
+    if (handler)
+      handler->restartComponent(kLatencyChanged);
+  }
+
+  return kResultOk;
 }
 
 tresult PLUGIN_API IPlugVST3::setProcessing(TBool state)
 {
   Trace(TRACELOC, " state: %i", state);
 
-  return SetProcessing((bool) state) ? kResultOk : kResultFalse;
+  SetRenderingOffline(processSetup.processMode == kOffline);
+
+  const bool ok = SetProcessing((bool) state);
+
+  if (!ok)
+    return kResultFalse;
+
+  if (state)
+  {
+    OnReset();
+
+    if (componentHandler)
+    {
+      FUnknownPtr<IComponentHandler> handler(componentHandler);
+      if (handler)
+        handler->restartComponent(kLatencyChanged);
+    }
+  }
+
+  return kResultOk;
 }
 
 tresult PLUGIN_API IPlugVST3::process(ProcessData& data)
 {
   TRACE
+
+  SetRenderingOffline(processSetup.processMode == kOffline);
 
   Process(data, processSetup, audioInputs, audioOutputs, mMidiMsgsFromEditor, mMidiMsgsFromProcessor, mSysExDataFromEditor, mSysexBuf);
   return kResultOk;
@@ -105,6 +147,16 @@ tresult PLUGIN_API IPlugVST3::process(ProcessData& data)
 tresult PLUGIN_API IPlugVST3::canProcessSampleSize(int32 symbolicSampleSize)
 {
   return CanProcessSampleSize(symbolicSampleSize) ? kResultTrue : kResultFalse;
+}
+
+uint32 PLUGIN_API IPlugVST3::getLatencySamples()
+{
+  // Hosts may re-query latency while the VST3 process mode is changing.
+  // Refresh the plug-in path first so GetLatency() matches realtime/offline mode.
+  SetRenderingOffline(processSetup.processMode == kOffline);
+  OnReset();
+
+  return GetLatency();
 }
 
 tresult PLUGIN_API IPlugVST3::setState(IBStream* pState)
