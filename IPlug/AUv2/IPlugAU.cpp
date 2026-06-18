@@ -454,9 +454,13 @@ UInt32 IPlugAU::GetChannelLayoutTags(AudioUnitScope scope, AudioUnitElement elem
 #undef NO_OP
 #define NO_OP(propID) case propID: return kAudioUnitErr_InvalidProperty;
 
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 110000
+extern "C" void* IPlugCreateRenderContextObserver(IPlugProcessor* pProcessor);
+#endif
+
 // pData == 0 means return property info only.
 OSStatus IPlugAU::GetProperty(AudioUnitPropertyID propID, AudioUnitScope scope, AudioUnitElement element,
-                                     UInt32* pDataSize, Boolean* pWriteable, void* pData)
+                                      UInt32* pDataSize, Boolean* pWriteable, void* pData)
 {
   Trace(TRACELOC, "%s(%d:%s):(%d:%s):%d", (pData ? "" : "info:"), propID, AUPropertyStr(propID), scope, AUScopeStr(scope), element);
 
@@ -474,6 +478,17 @@ OSStatus IPlugAU::GetProperty(AudioUnitPropertyID propID, AudioUnitScope scope, 
       }
       return noErr;
     }
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 110000
+    case kAudioUnitProperty_RenderContextObserver:
+    {
+      ASSERT_SCOPE(kAudioUnitScope_Global);
+      *pDataSize = sizeof(void*);
+      *pWriteable = false;
+      if (pData)
+        *((void**) pData) = IPlugCreateRenderContextObserver(this);
+      return noErr;
+    }
+#endif
     case kAudioUnitProperty_ClassInfo:                    // 0,
     {
       *pDataSize = sizeof(CFPropertyListRef);
@@ -2275,6 +2290,7 @@ OSStatus IPlugAU::DoInitialize(IPlugAU* _this)
 OSStatus IPlugAU::DoUninitialize(IPlugAU* _this)
 {
   _this->mActive = false;
+  _this->OnAudioWorkgroupChanged(nullptr);
   _this->OnActivate(false);
   return noErr;
 }

@@ -22,6 +22,13 @@
 
 using namespace iplug;
 
+#if (TARGET_OS_OSX && __MAC_OS_X_VERSION_MAX_ALLOWED >= 110000) \
+    || (TARGET_OS_IOS && __IPHONE_OS_VERSION_MAX_ALLOWED >= 140000)
+  #define IPLUG_AUDIO_WORKGROUP_API_AVAILABLE 1
+#else
+  #define IPLUG_AUDIO_WORKGROUP_API_AVAILABLE 0
+#endif
+
 @interface IPLUG_AUAUDIOUNIT ()
 
 @property AUAudioUnitBusArray* mInputBusArray;
@@ -532,6 +539,8 @@ static AUAudioUnitPreset* NewAUPreset(NSInteger number, NSString* pName)
 
 - (void) deallocateRenderResources
 {
+  mPlug->OnAudioWorkgroupChanged(nullptr);
+
   for (auto bufIdx = 0; bufIdx < mBufferedInputBuses.GetSize(); bufIdx++)
   {
     mBufferedInputBuses.Get(bufIdx)->deallocateRenderResources();
@@ -546,6 +555,17 @@ static AUAudioUnitPreset* NewAUPreset(NSInteger number, NSString* pName)
   
   [super deallocateRenderResources];
 }
+
+#if IPLUG_AUDIO_WORKGROUP_API_AVAILABLE
+- (AURenderContextObserver) renderContextObserver
+{
+  __block IPlugAUv3* pPlug = mPlug;
+
+  return ^(const AudioUnitRenderContext* context) {
+    pPlug->OnAudioWorkgroupChanged(context != nullptr ? (__bridge void*) context->workgroup : nullptr);
+  };
+}
+#endif
 
 #pragma mark - AUAudioUnit (AUAudioUnitImplementation)
 

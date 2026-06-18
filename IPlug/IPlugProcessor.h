@@ -80,6 +80,12 @@ public:
    * @param active \c true if the host has activated the plug-in */
   virtual void OnActivate(bool active) { TRACE }
 
+  /** Called by Apple Audio Unit wrappers when the host's real-time audio workgroup changes.
+   * The pointer is an os_workgroup_t on supported Apple platforms, or nullptr when there is
+   * no real-time workgroup. Plug-ins with auxiliary render threads can use this callback to
+   * join those threads to the same scheduling group as the host audio thread. */
+  virtual void OnAudioWorkgroupChanged(void* pWorkgroup) { (void) pWorkgroup; }
+
 #pragma mark - Methods you can call - some of which have custom implementations in the API classes, some implemented in IPlugProcessor.cpp
 
   /** Send a single MIDI message // TODO: info about what thread should this be called on or not called on!

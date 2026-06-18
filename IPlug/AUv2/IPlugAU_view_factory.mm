@@ -9,15 +9,28 @@
 */
  
 #import <Cocoa/Cocoa.h>
+#include <Block.h>
 #include <AudioUnit/AudioUnit.h>
 #include <AudioUnit/AUCocoaUIView.h>
 
 #include "config.h"   // This is your plugin's config.h.
 #include "IPlugAPIBase.h"
+#include "IPlugProcessor.h"
 
 using namespace iplug;
 
 static const AudioUnitPropertyID kIPlugObjectPropertyID = UINT32_MAX-100;
+
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 110000
+extern "C" void* IPlugCreateRenderContextObserver(IPlugProcessor* pProcessor)
+{
+  AURenderContextObserver callback = ^(const AudioUnitRenderContext* context) {
+    pProcessor->OnAudioWorkgroupChanged(context != nullptr ? (void*) context->workgroup : nullptr);
+  };
+
+  return Block_copy(callback);
+}
+#endif
 
 @interface AUV2_VIEW_CLASS : NSObject <AUCocoaUIBase>
 {
