@@ -1519,6 +1519,11 @@ OSStatus IPlugAU::SetState(CFPropertyListRef pPropList)
     return kAudioUnitErr_InvalidPropertyValue;
   }
 
+  // ClassInfo may contain a host-assigned present-preset name rather than one
+  // of the factory preset names. Retain it so a subsequent ClassInfo read
+  // returns the same kAUPresetNameKey value, as required by auval.
+  ModifyCurrentPreset(presetName);
+
   OnRestoreState();
   return noErr;
 }
