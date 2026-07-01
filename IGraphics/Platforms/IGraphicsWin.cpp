@@ -733,6 +733,17 @@ LRESULT CALLBACK IGraphicsWin::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
     }
     case WM_KILLFOCUS:
     {
+      // NAM_FILTER_LAB_FOCUS_FIX
+      // The plug-in uses IGraphics' internal ITextEntryControl. Without an
+      // explicit commit on focus loss, that special control can remain active
+      // after Alt-Tab and continue intercepting all subsequent mouse clicks.
+      if (pGraphics->GetControlInTextEntry() != nullptr
+          && !pGraphics->IsInPlatformTextEntry())
+      {
+        IKeyPress returnKey {"", kVK_RETURN, false, false, false};
+        pGraphics->OnKeyDown(0.0f, 0.0f, returnKey);
+      }
+
       return 0;
     }
   }
