@@ -150,17 +150,13 @@ void IPlugAPPHost::PopulateAudioOutputList(HWND hwndDlg, RtAudio::DeviceInfo* in
 void IPlugAPPHost::PopulateDriverSpecificControls(HWND hwndDlg)
 {
 #ifdef OS_WIN
-  int driverType = (int) SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_DRIVER, CB_GETCURSEL, 0, 0);
-  if(driverType == kDeviceASIO)
-  {
-    ComboBox_Enable(GetDlgItem(hwndDlg, IDC_COMBO_AUDIO_IN_DEV), FALSE);
-    Button_Enable(GetDlgItem(hwndDlg, IDC_BUTTON_OS_DEV_SETTINGS), TRUE);
-  }
-  else
-  {
-    ComboBox_Enable(GetDlgItem(hwndDlg, IDC_COMBO_AUDIO_IN_DEV), TRUE);
-    Button_Enable(GetDlgItem(hwndDlg, IDC_BUTTON_OS_DEV_SETTINGS), FALSE);
-  }
+  const int driverType = (int) SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_DRIVER, CB_GETCURSEL, 0, 0);
+  const bool isASIO = driverType == kDeviceASIO;
+
+  ComboBox_Enable(GetDlgItem(hwndDlg, IDC_COMBO_AUDIO_IN_DEV), !isASIO);
+  Button_Enable(GetDlgItem(hwndDlg, IDC_BUTTON_OS_DEV_SETTINGS), isASIO);
+#else
+  const bool isASIO = false;
 #endif
 
   int indevidx = 0;
@@ -169,44 +165,70 @@ void IPlugAPPHost::PopulateDriverSpecificControls(HWND hwndDlg)
   SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_RESETCONTENT,0,0);
   SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_DEV,CB_RESETCONTENT,0,0);
 
-  for (int i = 0; i<mAudioInputDevs.size(); i++)
-  {
-    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_ADDSTRING,0,(LPARAM)GetAudioDeviceName(mAudioInputDevs[i]).c_str());
+  // ASIO uses one driver for input and output. Populate both device menus from
+  // the same RtAudio device-id list so their indices cannot refer to different
+  // drivers when the input/output capability lists have a different order.
+  const std::vector<uint32_t>& inputDeviceList = isASIO ? mAudioOutputDevs : mAudioInputDevs;
 
-    if(!strcmp(GetAudioDeviceName(mAudioInputDevs[i]).c_str(), mState.mAudioInDev.Get()))
+  for (int i = 0; i < static_cast<int>(inputDeviceList.size()); i++)
+  {
+    const std::string deviceName = GetAudioDeviceName(inputDeviceList[i]);
+    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_ADDSTRING,0,(LPARAM)deviceName.c_str());
+
+    const char* selectedName = isASIO ? mState.mAudioOutDev.Get() : mState.mAudioInDev.Get();
+    if(!strcmp(deviceName.c_str(), selectedName))
       indevidx = i;
   }
 
-  for (int i = 0; i<mAudioOutputDevs.size(); i++)
+  for (int i = 0; i < static_cast<int>(mAudioOutputDevs.size()); i++)
   {
-    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_DEV,CB_ADDSTRING,0,(LPARAM)GetAudioDeviceName(mAudioOutputDevs[i]).c_str());
+    const std::string deviceName = GetAudioDeviceName(mAudioOutputDevs[i]);
+    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_DEV,CB_ADDSTRING,0,(LPARAM)deviceName.c_str());
 
-    if(!strcmp(GetAudioDeviceName(mAudioOutputDevs[i]).c_str(), mState.mAudioOutDev.Get()))
+    if(!strcmp(deviceName.c_str(), mState.mAudioOutDev.Get()))
       outdevidx = i;
   }
 
-#ifdef OS_WIN
-  if(driverType == kDeviceASIO)
-    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_SETCURSEL, outdevidx, 0);
-  else
-#endif
-    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_SETCURSEL, indevidx, 0);
+  if (isASIO)
+  {
+    indevidx = outdevidx;
 
+    if (!mAudioOutputDevs.empty())
+    {
+      const std::string deviceName = GetAudioDeviceName(mAudioOutputDevs[outdevidx]);
+      mState.mAudioInDev.Set(deviceName.c_str());
+      mState.mAudioOutDev.Set(deviceName.c_str());
+    }
+  }
+
+  SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_SETCURSEL, indevidx, 0);
   SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_DEV,CB_SETCURSEL, outdevidx, 0);
 
   RtAudio::DeviceInfo inputDevInfo;
   RtAudio::DeviceInfo outputDevInfo;
 
-  if (mAudioInputDevs.size())
+  if (isASIO && !mAudioOutputDevs.empty())
   {
-    inputDevInfo = mDAC->getDeviceInfo(mAudioInputDevs[indevidx]);
-    PopulateAudioInputList(hwndDlg, &inputDevInfo);
-  }
-
-  if (mAudioOutputDevs.size())
-  {
+    // Query the selected ASIO driver once and use the exact same DeviceInfo
+    // for both channel lists and for sample-rate matching.
     outputDevInfo = mDAC->getDeviceInfo(mAudioOutputDevs[outdevidx]);
+    inputDevInfo = outputDevInfo;
+    PopulateAudioInputList(hwndDlg, &inputDevInfo);
     PopulateAudioOutputList(hwndDlg, &outputDevInfo);
+  }
+  else
+  {
+    if (!mAudioInputDevs.empty())
+    {
+      inputDevInfo = mDAC->getDeviceInfo(mAudioInputDevs[indevidx]);
+      PopulateAudioInputList(hwndDlg, &inputDevInfo);
+    }
+
+    if (!mAudioOutputDevs.empty())
+    {
+      outputDevInfo = mDAC->getDeviceInfo(mAudioOutputDevs[outdevidx]);
+      PopulateAudioOutputList(hwndDlg, &outputDevInfo);
+    }
   }
 
   PopulateSampleRateList(hwndDlg, &inputDevInfo, &outputDevInfo);
