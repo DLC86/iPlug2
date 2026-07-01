@@ -1011,9 +1011,8 @@ OSStatus IPlugAU::GetProperty(AudioUnitPropertyID propID, AudioUnitScope scope, 
       if (pData)
       {
         AUPreset* pAUPreset = (AUPreset*) pData;
-        pAUPreset->presetNumber = GetCurrentPresetIdx();
-        const char* name = GetPresetName(pAUPreset->presetNumber);
-        pAUPreset->presetName = CFStringCreateWithCString(0, name, kCFStringEncodingUTF8);
+        pAUPreset->presetNumber = GetPresentPresetNumber();
+        pAUPreset->presetName = CFStringCreateWithCString(0, GetPresentPresetName(), kCFStringEncodingUTF8);
       }
       return noErr;
     }
@@ -1296,8 +1295,28 @@ OSStatus IPlugAU::SetProperty(AudioUnitPropertyID propID, AudioUnitScope scope, 
     case kAudioUnitProperty_CurrentPreset:               // 28,
     case kAudioUnitProperty_PresentPreset:               // 36,
     {
-      int presetIdx = ((AUPreset*) pData)->presetNumber;
-      RestorePreset(presetIdx);
+      const AUPreset* pAUPreset = (const AUPreset*) pData;
+      const int presetIdx = pAUPreset->presetNumber;
+
+      // A non-negative number recalls a factory preset. A negative number is
+      // host-owned metadata for a custom state and must not alter DSP state.
+      if (presetIdx >= 0 && !RestorePreset(presetIdx))
+        return kAudioUnitErr_InvalidPropertyValue;
+
+      if (pAUPreset->presetName)
+      {
+        CStrLocal presetName(pAUPreset->presetName);
+        SetPresentPreset(presetIdx, presetName.Get());
+      }
+      else if (presetIdx >= 0)
+      {
+        SetPresentPreset(presetIdx, GetPresetName(presetIdx));
+      }
+      else
+      {
+        SetPresentPreset(presetIdx, "");
+      }
+
       return noErr;
     }
     case kAudioUnitProperty_OfflineRender:                // 37,
@@ -1456,6 +1475,23 @@ void IPlugAU::AssessInputConnections()
   }
 }
 
+void IPlugAU::SetPresentPreset(int presetNumber, const char* presetName)
+{
+  mPresentPresetNumber = presetNumber;
+  mPresentPresetName.Set(presetName ? presetName : "");
+  mHasPresentPreset = true;
+}
+
+int IPlugAU::GetPresentPresetNumber() const
+{
+  return mHasPresentPreset ? mPresentPresetNumber : GetCurrentPresetIdx();
+}
+
+const char* IPlugAU::GetPresentPresetName() const
+{
+  return mHasPresentPreset ? mPresentPresetName.Get() : GetPresetName(GetCurrentPresetIdx());
+}
+
 OSStatus IPlugAU::GetState(CFPropertyListRef* ppPropList)
 {
   int plugType = GetAUPluginType();
@@ -1468,7 +1504,7 @@ OSStatus IPlugAU::GetState(CFPropertyListRef* ppPropList)
   PutNumberInDict(pDict, kAUPresetTypeKey, &(plugType), kCFNumberSInt32Type);
   PutNumberInDict(pDict, kAUPresetSubtypeKey, &(plugSubType), kCFNumberSInt32Type);
   PutNumberInDict(pDict, kAUPresetManufacturerKey, &(plugManID), kCFNumberSInt32Type);
-  PutStrInDict(pDict, kAUPresetNameKey, GetPresetName(GetCurrentPresetIdx()));
+  PutStrInDict(pDict, kAUPresetNameKey, GetPresentPresetName());
 
   IByteChunk chunk;
   //InitChunkWithIPlugVer(&IPlugChunk); // TODO: IPlugVer should be in chunk!
@@ -1519,10 +1555,10 @@ OSStatus IPlugAU::SetState(CFPropertyListRef pPropList)
     return kAudioUnitErr_InvalidPropertyValue;
   }
 
-  // ClassInfo may contain a host-assigned present-preset name rather than one
-  // of the factory preset names. Retain it so a subsequent ClassInfo read
-  // returns the same kAUPresetNameKey value, as required by auval.
-  ModifyCurrentPreset(presetName);
+  // ClassInfo may contain a host-assigned name that is not a factory preset.
+  // Keep that metadata separate from the factory preset bank and return it on
+  // subsequent PresentPreset and ClassInfo reads.
+  SetPresentPreset(-1, presetName);
 
   OnRestoreState();
   return noErr;
@@ -1942,6 +1978,7 @@ void IPlugAU::EndInformHostOfParamChange(int idx)
 
 void IPlugAU::InformHostOfPresetChange()
 {
+  SetPresentPreset(GetCurrentPresetIdx(), GetPresetName(GetCurrentPresetIdx()));
   //InformListeners(kAudioUnitProperty_CurrentPreset, kAudioUnitScope_Global);
   InformListeners(kAudioUnitProperty_PresentPreset, kAudioUnitScope_Global);
 }

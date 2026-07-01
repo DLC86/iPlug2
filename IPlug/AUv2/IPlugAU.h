@@ -131,6 +131,9 @@ private:
   bool CheckLegalIO(AudioUnitScope scope, int busIdx, int nChannels);
   bool CheckLegalIO();
   void AssessInputConnections();
+  void SetPresentPreset(int presetNumber, const char* presetName);
+  int GetPresentPresetNumber() const;
+  const char* GetPresentPresetName() const;
 
   UInt32 GetTagForNumChannels(int numChannels);
   UInt32 GetChannelLayoutTags(AudioUnitScope scope, AudioUnitElement element, AudioChannelLayoutTag* pTags);
@@ -217,6 +220,9 @@ private:
   AUMIDIOutputCallbackStruct mMidiCallback;
   AudioTimeStamp mLastRenderTimeStamp;
   WDL_String mTrackName;
+  bool mHasPresentPreset = false;
+  int mPresentPresetNumber = -1;
+  WDL_String mPresentPresetName;
   template <class Plug, bool DoesMIDIIn>
   friend class IPlugAUFactory;
 };
