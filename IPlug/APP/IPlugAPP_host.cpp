@@ -146,7 +146,7 @@ bool IPlugAPPHost::InitState()
 
     if(!result_code)
     {
-      mINIPath.Append("\\settings.ini");
+      mINIPath.Append("settings.ini");
       UpdateINI(); // will write file if doesn't exist
     }
     else
@@ -578,18 +578,63 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
   CloseAudio();
 
   RtAudio::StreamParameters iParams, oParams;
+  const int nInputChannels = GetPlug()->MaxNChannels(ERoute::kInput);
+  const int nOutputChannels = GetPlug()->MaxNChannels(ERoute::kOutput);
+  const RtAudio::DeviceInfo inputInfo = mDAC->getDeviceInfo(inId);
+  const RtAudio::DeviceInfo outputInfo = mDAC->getDeviceInfo(outId);
+
+  if ((nInputChannels > 0 && inputInfo.inputChannels < static_cast<unsigned int>(nInputChannels))
+      || (nOutputChannels > 0 && outputInfo.outputChannels < static_cast<unsigned int>(nOutputChannels)))
+  {
+    MessageBox(gHWND,
+               "The selected audio device does not provide enough input or output channels.",
+               "Error",
+               MB_OK);
+    return false;
+  }
+
+  auto ClampFirstChannel = [](uint32_t selectedOneBased, int requiredChannels, unsigned int availableChannels) {
+    if (requiredChannels <= 0 || availableChannels <= static_cast<unsigned int>(requiredChannels))
+      return 0u;
+
+    const unsigned int requested = selectedOneBased > 0 ? selectedOneBased - 1 : 0;
+    const unsigned int maxFirst = availableChannels - static_cast<unsigned int>(requiredChannels);
+    return requested < maxFirst ? requested : maxFirst;
+  };
+
   iParams.deviceId = inId;
-  iParams.nChannels = GetPlug()->MaxNChannels(ERoute::kInput); // TODO: flexible channel count
-  iParams.firstChannel = 0; // TODO: flexible channel count
+  iParams.nChannels = nInputChannels;
+  iParams.firstChannel = ClampFirstChannel(mState.mAudioInChanL, nInputChannels, inputInfo.inputChannels);
 
   oParams.deviceId = outId;
-  oParams.nChannels = GetPlug()->MaxNChannels(ERoute::kOutput); // TODO: flexible channel count
-  oParams.firstChannel = 0; // TODO: flexible channel count
+  oParams.nChannels = nOutputChannels;
+  oParams.firstChannel = ClampFirstChannel(mState.mAudioOutChanL, nOutputChannels, outputInfo.outputChannels);
+
+  if (nInputChannels > 0)
+  {
+    mState.mAudioInChanL = iParams.firstChannel + 1;
+    mState.mAudioInChanR = iParams.firstChannel + static_cast<unsigned int>(nInputChannels);
+  }
+
+  if (nOutputChannels > 0)
+  {
+    mState.mAudioOutChanL = oParams.firstChannel + 1;
+    mState.mAudioOutChanR = oParams.firstChannel + static_cast<unsigned int>(nOutputChannels);
+  }
 
   mBufferSize = iovs; // mBufferSize may get changed by stream
 
-  DBGMSG("\ntrying to start audio stream @ %i sr, %i buffer size\nindev = %i:%s\noutdev = %i:%s\ninputs = %i\noutputs = %i\n",
-         sr, mBufferSize, inId, GetAudioDeviceName(inId).c_str(), outId, GetAudioDeviceName(outId).c_str(), iParams.nChannels, oParams.nChannels);
+  DBGMSG("\ntrying to start audio stream @ %i sr, %i buffer size\nindev = %i:%s\noutdev = %i:%s\ninputs = %i from channel %i\noutputs = %i from channel %i\n",
+         sr,
+         mBufferSize,
+         inId,
+         GetAudioDeviceName(inId).c_str(),
+         outId,
+         GetAudioDeviceName(outId).c_str(),
+         iParams.nChannels,
+         iParams.firstChannel + 1,
+         oParams.nChannels,
+         oParams.firstChannel + 1);
 
   RtAudio::StreamOptions options;
   options.flags = RTAUDIO_NONINTERLEAVED;
@@ -601,27 +646,32 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
   mVecWait = 0;
   mAudioEnding = false;
   mAudioDone = false;
-  
+
+  mInputBufPtrs.Empty();
+  mOutputBufPtrs.Empty();
+
   mIPlug->SetBlockSize(APP_SIGNAL_VECTOR_SIZE);
   mIPlug->SetSampleRate(mSampleRate);
   mIPlug->OnReset();
 
   try
   {
-    mDAC->openStream(&oParams, iParams.nChannels > 0 ? &iParams : nullptr, RTAUDIO_FLOAT64, sr, &mBufferSize, &AudioCallback, this, &options /*, &ErrorCallback */);
-    
-    for (int i = 0; i < iParams.nChannels; i++)
-    {
-      mInputBufPtrs.Add(nullptr); //will be set in callback
-    }
-    
-    for (int i = 0; i < oParams.nChannels; i++)
-    {
-      mOutputBufPtrs.Add(nullptr); //will be set in callback
-    }
-    
-    mDAC->startStream();
+    mDAC->openStream(&oParams,
+                     iParams.nChannels > 0 ? &iParams : nullptr,
+                     RTAUDIO_FLOAT64,
+                     sr,
+                     &mBufferSize,
+                     &AudioCallback,
+                     this,
+                     &options /*, &ErrorCallback */);
 
+    for (int i = 0; i < iParams.nChannels; i++)
+      mInputBufPtrs.Add(nullptr); // will be set in callback
+
+    for (int i = 0; i < oParams.nChannels; i++)
+      mOutputBufPtrs.Add(nullptr); // will be set in callback
+
+    mDAC->startStream();
     mActiveState = mState;
   }
   catch (RtAudioError& e)

@@ -67,56 +67,78 @@ void IPlugAPPHost::PopulateSampleRateList(HWND hwndDlg, RtAudio::DeviceInfo* inp
 
 void IPlugAPPHost::PopulateAudioInputList(HWND hwndDlg, RtAudio::DeviceInfo* info)
 {
-  if(!info->probed)
+  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_IN_L, CB_RESETCONTENT, 0, 0);
+  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_IN_R, CB_RESETCONTENT, 0, 0);
+
+  if (!info->probed)
     return;
 
+  const int requiredChannels = GetPlug()->MaxNChannels(ERoute::kInput);
+  const int availableChannels = static_cast<int>(info->inputChannels);
+  const int startCount = requiredChannels > 0 ? availableChannels - requiredChannels + 1 : 0;
+
+  if (startCount <= 0)
+    return;
+
+  if (mState.mAudioInChanL < 1 || mState.mAudioInChanL > static_cast<uint32_t>(startCount))
+    mState.mAudioInChanL = 1;
+
+  mState.mAudioInChanR = mState.mAudioInChanL + static_cast<uint32_t>(requiredChannels - 1);
+
   WDL_String buf;
-
-  SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_L,CB_RESETCONTENT,0,0);
-  SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_R,CB_RESETCONTENT,0,0);
-
-  int i;
-
-  for (i=0; i<info->inputChannels -1; i++)
+  for (int i = 0; i < startCount; i++)
   {
-    buf.SetFormatted(20, "%i", i+1);
-    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_L,CB_ADDSTRING,0,(LPARAM)buf.Get());
-    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_R,CB_ADDSTRING,0,(LPARAM)buf.Get());
+    buf.SetFormatted(20, "%i", i + 1);
+    SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_IN_L, CB_ADDSTRING, 0, (LPARAM) buf.Get());
   }
 
-  // TEMP
-  buf.SetFormatted(20, "%i", i+1);
-  SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_R,CB_ADDSTRING,0,(LPARAM)buf.Get());
+  for (int i = 0; i < availableChannels; i++)
+  {
+    buf.SetFormatted(20, "%i", i + 1);
+    SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_IN_R, CB_ADDSTRING, 0, (LPARAM) buf.Get());
+  }
 
-  SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_L,CB_SETCURSEL, mState.mAudioInChanL - 1, 0);
-  SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_R,CB_SETCURSEL, mState.mAudioInChanR - 1, 0);
+  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_IN_L, CB_SETCURSEL, mState.mAudioInChanL - 1, 0);
+  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_IN_R, CB_SETCURSEL, mState.mAudioInChanR - 1, 0);
+  EnableWindow(GetDlgItem(hwndDlg, IDC_COMBO_AUDIO_IN_R), FALSE);
 }
 
 void IPlugAPPHost::PopulateAudioOutputList(HWND hwndDlg, RtAudio::DeviceInfo* info)
 {
-  if(!info->probed)
+  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_L, CB_RESETCONTENT, 0, 0);
+  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_R, CB_RESETCONTENT, 0, 0);
+
+  if (!info->probed)
     return;
 
+  const int requiredChannels = GetPlug()->MaxNChannels(ERoute::kOutput);
+  const int availableChannels = static_cast<int>(info->outputChannels);
+  const int startCount = requiredChannels > 0 ? availableChannels - requiredChannels + 1 : 0;
+
+  if (startCount <= 0)
+    return;
+
+  if (mState.mAudioOutChanL < 1 || mState.mAudioOutChanL > static_cast<uint32_t>(startCount))
+    mState.mAudioOutChanL = 1;
+
+  mState.mAudioOutChanR = mState.mAudioOutChanL + static_cast<uint32_t>(requiredChannels - 1);
+
   WDL_String buf;
-
-  SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_L,CB_RESETCONTENT,0,0);
-  SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_R,CB_RESETCONTENT,0,0);
-
-  int i;
-
-  for (i=0; i<info->outputChannels -1; i++)
+  for (int i = 0; i < startCount; i++)
   {
-    buf.SetFormatted(20, "%i", i+1);
-    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_L,CB_ADDSTRING,0,(LPARAM)buf.Get());
-    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_R,CB_ADDSTRING,0,(LPARAM)buf.Get());
+    buf.SetFormatted(20, "%i", i + 1);
+    SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_L, CB_ADDSTRING, 0, (LPARAM) buf.Get());
   }
 
-  // TEMP
-  buf.SetFormatted(20, "%i", i+1);
-  SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_R,CB_ADDSTRING,0,(LPARAM)buf.Get());
+  for (int i = 0; i < availableChannels; i++)
+  {
+    buf.SetFormatted(20, "%i", i + 1);
+    SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_R, CB_ADDSTRING, 0, (LPARAM) buf.Get());
+  }
 
-  SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_L,CB_SETCURSEL, mState.mAudioOutChanL - 1, 0);
-  SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_R,CB_SETCURSEL, mState.mAudioOutChanR - 1, 0);
+  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_L, CB_SETCURSEL, mState.mAudioOutChanL - 1, 0);
+  SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_R, CB_SETCURSEL, mState.mAudioOutChanR - 1, 0);
+  EnableWindow(GetDlgItem(hwndDlg, IDC_COMBO_AUDIO_OUT_R), FALSE);
 }
 
 // This has to get called after any change to audio driver/in dev/out dev
@@ -368,6 +390,8 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
                 mState.mAudioOutDev.Set(_this->GetAudioDeviceName(_this->mAudioOutputDevs[0]).c_str());
 
               // Reset IO
+              mState.mAudioInChanL = 1;
+              mState.mAudioInChanR = 1;
               mState.mAudioOutChanL = 1;
               mState.mAudioOutChanR = 2;
 
@@ -408,36 +432,28 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
           if (HIWORD(wParam) == CBN_SELCHANGE)
           {
             mState.mAudioInChanL = (int) SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_IN_L, CB_GETCURSEL, 0, 0) + 1;
-
-            //TEMP
-            mState.mAudioInChanR = mState.mAudioInChanL + 1;
-            SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_R,CB_SETCURSEL, mState.mAudioInChanR - 1, 0);
-            //
+            const int requiredChannels = _this->GetPlug()->MaxNChannels(ERoute::kInput);
+            mState.mAudioInChanR = mState.mAudioInChanL + (requiredChannels > 0 ? requiredChannels - 1 : 0);
+            SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_IN_R, CB_SETCURSEL, mState.mAudioInChanR - 1, 0);
           }
           break;
 
         case IDC_COMBO_AUDIO_IN_R:
-          if (HIWORD(wParam) == CBN_SELCHANGE)
-            SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_R,CB_SETCURSEL, mState.mAudioInChanR - 1, 0);  // TEMP
-                mState.mAudioInChanR = (int) SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_IN_R, CB_GETCURSEL, 0, 0);
+          // RtAudio opens contiguous channel ranges; the right channel is derived from the selected first channel.
           break;
 
         case IDC_COMBO_AUDIO_OUT_L:
           if (HIWORD(wParam) == CBN_SELCHANGE)
           {
             mState.mAudioOutChanL = (int) SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_L, CB_GETCURSEL, 0, 0) + 1;
-
-            //TEMP
-            mState.mAudioOutChanR = mState.mAudioOutChanL + 1;
-            SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_R,CB_SETCURSEL, mState.mAudioOutChanR - 1, 0);
-            //
+            const int requiredChannels = _this->GetPlug()->MaxNChannels(ERoute::kOutput);
+            mState.mAudioOutChanR = mState.mAudioOutChanL + (requiredChannels > 0 ? requiredChannels - 1 : 0);
+            SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_R, CB_SETCURSEL, mState.mAudioOutChanR - 1, 0);
           }
           break;
 
         case IDC_COMBO_AUDIO_OUT_R:
-          if (HIWORD(wParam) == CBN_SELCHANGE)
-            SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_R,CB_SETCURSEL, mState.mAudioOutChanR - 1, 0);  // TEMP
-                mState.mAudioOutChanR = (int) SendDlgItemMessage(hwndDlg, IDC_COMBO_AUDIO_OUT_R, CB_GETCURSEL, 0, 0);
+          // RtAudio opens contiguous channel ranges; the right channel is derived from the selected first channel.
           break;
 
 //        case IDC_CB_MONO_INPUT:
