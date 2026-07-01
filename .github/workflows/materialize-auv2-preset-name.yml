@@ -1,0 +1,38 @@
+name: Materialize AUv2 preset-name fix
+
+on:
+  push:
+    branches:
+      - fix-auv2-preset-name-roundtrip
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: fix-auv2-preset-name-roundtrip
+          fetch-depth: 0
+
+      - name: Apply source changes
+        run: |
+          python3 .github/scripts/apply_auv2_preset_name_fix.py
+          git diff --check -- IPlug/AUv2/IPlugAU.h IPlug/AUv2/IPlugAU.cpp
+
+      - name: Remove one-shot files
+        run: |
+          rm .github/scripts/apply_auv2_preset_name_fix.py
+          rm .github/workflows/materialize-auv2-preset-name.yml
+
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add IPlug/AUv2/IPlugAU.h IPlug/AUv2/IPlugAU.cpp
+          git add -u .github/scripts/apply_auv2_preset_name_fix.py .github/workflows/materialize-auv2-preset-name.yml
+          git commit -m "Retain AUv2 present preset names"
+          git push origin HEAD:fix-auv2-preset-name-roundtrip
