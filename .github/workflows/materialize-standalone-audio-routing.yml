@@ -1,0 +1,42 @@
+name: Materialize standalone audio routing fixes
+
+on:
+  push:
+    branches:
+      - fix-standalone-audio-routing
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v6
+        with:
+          ref: fix-standalone-audio-routing
+          fetch-depth: 0
+
+      - name: Apply source patch
+        shell: bash
+        run: |
+          python3 .github/scripts/apply_standalone_audio_routing_fix.py
+          git diff --check -- IPlug/APP/IPlugAPP_host.h IPlug/APP/IPlugAPP_host.cpp IPlug/APP/IPlugAPP_dialog.cpp
+
+      - name: Remove one-shot materializer
+        shell: bash
+        run: |
+          rm .github/scripts/apply_standalone_audio_routing_fix.py
+          rm .github/workflows/materialize-standalone-audio-routing.yml
+
+      - name: Commit clean patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add IPlug/APP/IPlugAPP_host.h IPlug/APP/IPlugAPP_host.cpp IPlug/APP/IPlugAPP_dialog.cpp
+          git add -u .github/scripts/apply_standalone_audio_routing_fix.py .github/workflows/materialize-standalone-audio-routing.yml
+          git commit -m "Fix standalone audio settings and channel routing"
+          git push origin HEAD:fix-standalone-audio-routing
