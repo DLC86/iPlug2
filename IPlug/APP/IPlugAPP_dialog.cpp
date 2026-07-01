@@ -39,7 +39,7 @@ int GetNumChannelStartOptions(int availableChannels, int streamChannels)
   if (availableChannels <= 0 || streamChannels <= 0)
     return 0;
 
-  return availableChannels > streamChannels ? availableChannels - streamChannels + 1 : 1;
+  return availableChannels >= streamChannels ? availableChannels - streamChannels + 1 : 0;
 }
 }
 
@@ -109,7 +109,7 @@ void IPlugAPPHost::PopulateAudioInputList(HWND hwndDlg, RtAudio::DeviceInfo* inf
 
   SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_L,CB_SETCURSEL, mState.mAudioInChanL - 1, 0);
   SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_R,CB_SETCURSEL, mState.mAudioInChanR - 1, 0);
-  EnableWindow(GetDlgItem(hwndDlg, IDC_COMBO_AUDIO_IN_R), nInputChans > 1);
+  EnableWindow(GetDlgItem(hwndDlg, IDC_COMBO_AUDIO_IN_R), FALSE);
 }
 
 void IPlugAPPHost::PopulateAudioOutputList(HWND hwndDlg, RtAudio::DeviceInfo* info)
@@ -143,7 +143,7 @@ void IPlugAPPHost::PopulateAudioOutputList(HWND hwndDlg, RtAudio::DeviceInfo* in
 
   SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_L,CB_SETCURSEL, mState.mAudioOutChanL - 1, 0);
   SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_R,CB_SETCURSEL, mState.mAudioOutChanR - 1, 0);
-  EnableWindow(GetDlgItem(hwndDlg, IDC_COMBO_AUDIO_OUT_R), nOutputChans > 1);
+  EnableWindow(GetDlgItem(hwndDlg, IDC_COMBO_AUDIO_OUT_R), FALSE);
 }
 
 // This has to get called after any change to audio driver/in dev/out dev
@@ -395,6 +395,8 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
                 mState.mAudioOutDev.Set(_this->GetAudioDeviceName(_this->mAudioOutputDevs[0]).c_str());
 
               // Reset IO
+              mState.mAudioInChanL = 1;
+              mState.mAudioInChanR = 1;
               mState.mAudioOutChanL = 1;
               mState.mAudioOutChanR = 2;
 

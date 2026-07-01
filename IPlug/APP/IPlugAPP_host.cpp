@@ -160,7 +160,7 @@ bool IPlugAPPHost::InitState()
 
     if(!result_code)
     {
-      mINIPath.Append("\\settings.ini");
+      mINIPath.Append("settings.ini");
       UpdateINI(); // will write file if doesn't exist
     }
     else
@@ -630,6 +630,9 @@ bool IPlugAPPHost::InitAudio(uint32_t inId, uint32_t outId, uint32_t sr, uint32_
   mVecWait = 0;
   mAudioEnding = false;
   mAudioDone = false;
+
+  mInputBufPtrs.Empty();
+  mOutputBufPtrs.Empty();
   
   mIPlug->SetBlockSize(APP_SIGNAL_VECTOR_SIZE);
   mIPlug->SetSampleRate(mSampleRate);
