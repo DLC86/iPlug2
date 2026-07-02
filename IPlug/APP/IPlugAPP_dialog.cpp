@@ -379,7 +379,11 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
           EndDialog(hwndDlg, IDOK); // INI file will be changed see MainDialogProc
           break;
         case IDAPPLY:
-          _this->TryToChangeAudio();
+          if (_this->TryToChangeAudio())
+          {
+            _this->UpdateINI();
+            mActiveState = mState;
+          }
           break;
         case IDCANCEL:
           EndDialog(hwndDlg, IDCANCEL);
