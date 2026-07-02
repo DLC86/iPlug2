@@ -1011,8 +1011,13 @@ OSStatus IPlugAU::GetProperty(AudioUnitPropertyID propID, AudioUnitScope scope, 
       if (pData)
       {
         AUPreset* pAUPreset = (AUPreset*) pData;
+#ifdef AU_NO_PRESETS
+        pAUPreset->presetNumber = -1;
+        pAUPreset->presetName = CFStringCreateWithCString(0, GetPresentPresetName(), kCFStringEncodingUTF8);
+#else
         pAUPreset->presetNumber = GetPresentPresetNumber();
         pAUPreset->presetName = CFStringCreateWithCString(0, GetPresentPresetName(), kCFStringEncodingUTF8);
+#endif
       }
       return noErr;
     }
@@ -1298,6 +1303,17 @@ OSStatus IPlugAU::SetProperty(AudioUnitPropertyID propID, AudioUnitScope scope, 
       const AUPreset* pAUPreset = (const AUPreset*) pData;
       const int presetIdx = pAUPreset->presetNumber;
 
+#ifdef AU_NO_PRESETS
+      if (pAUPreset->presetName)
+      {
+        CStrLocal presetName(pAUPreset->presetName);
+        SetPresentPreset(-1, presetName.Get());
+      }
+      else
+      {
+        SetPresentPreset(-1, "");
+      }
+#else
       // A non-negative number recalls a factory preset. A negative number is
       // host-owned metadata for a custom state and must not alter DSP state.
       if (presetIdx >= 0 && !RestorePreset(presetIdx))
@@ -1316,6 +1332,7 @@ OSStatus IPlugAU::SetProperty(AudioUnitPropertyID propID, AudioUnitScope scope, 
       {
         SetPresentPreset(presetIdx, "");
       }
+#endif
 
       return noErr;
     }
@@ -1978,7 +1995,11 @@ void IPlugAU::EndInformHostOfParamChange(int idx)
 
 void IPlugAU::InformHostOfPresetChange()
 {
+#ifdef AU_NO_PRESETS
+  SetPresentPreset(-1, GetPresetName(GetCurrentPresetIdx()));
+#else
   SetPresentPreset(GetCurrentPresetIdx(), GetPresetName(GetCurrentPresetIdx()));
+#endif
   //InformListeners(kAudioUnitProperty_CurrentPreset, kAudioUnitScope_Global);
   InformListeners(kAudioUnitProperty_PresentPreset, kAudioUnitScope_Global);
 }
