@@ -104,8 +104,16 @@ IGraphicsCanvas::~IGraphicsCanvas()
 
 void IGraphicsCanvas::DrawBitmap(const IBitmap& bitmap, const IRECT& bounds, int srcX, int srcY, const IBlend* pBlend)
 {
+  APIBitmap* pAPIBitmap = bitmap.GetAPIBitmap();
+  if (pAPIBitmap == nullptr)
+    return;
+
+  auto pBitmap = pAPIBitmap->GetBitmap();
+  if (pBitmap == nullptr)
+    return;
+
   val context = GetContext();
-  val img = *bitmap.GetAPIBitmap()->GetBitmap();
+  val img = *pBitmap;
   context.call<void>("save");
   SetCanvasBlendMode(context, pBlend);
   context.set("globalAlpha", BlendWeight(pBlend));

@@ -299,10 +299,11 @@ IBitmap IGraphicsNanoVG::LoadBitmap(const char* name, int nStates, bool framesAr
     }
 
     pAPIBitmap = LoadAPIBitmap(fullPathOrResourceID.Get(), sourceScale, resourceFound, ext);
+    assert(pAPIBitmap && "Bitmap not loaded");
+    if (pAPIBitmap == nullptr)
+      return IBitmap();
     
     storage.Add(pAPIBitmap, name, sourceScale);
-
-    assert(pAPIBitmap && "Bitmap not loaded");
   }
   
   return IBitmap(pAPIBitmap, nStates, framesAreHorizontal, name);
@@ -540,8 +541,8 @@ void IGraphicsNanoVG::EndFrame()
 void IGraphicsNanoVG::DrawBitmap(const IBitmap& bitmap, const IRECT& dest, int srcX, int srcY, const IBlend* pBlend)
 {
   APIBitmap* pAPIBitmap = bitmap.GetAPIBitmap();
-  
-  assert(pAPIBitmap);
+  if (pAPIBitmap == nullptr)
+    return;
     
   // First generate a scaled image paint
   NVGpaint imgPaint;

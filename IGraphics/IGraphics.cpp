@@ -672,6 +672,9 @@ void IGraphics::DrawText(const IText& text, const char* str, float x, float y, c
 
 void IGraphics::DrawBitmap(const IBitmap& bitmap, const IRECT& bounds, int bmpState, const IBlend* pBlend)
 {
+  if (bitmap.GetAPIBitmap() == nullptr || bitmap.N() < 1)
+    return;
+
   int srcX = 0;
   int srcY = 0;
 
@@ -1473,6 +1476,9 @@ void IGraphics::OnAppearanceChanged(EUIAppearance appearance)
 
 IBitmap IGraphics::GetScaledBitmap(IBitmap& src)
 {
+  if (!src.IsValid())
+    return IBitmap();
+
   //TODO: bug with # frames!
 //  return LoadBitmap(src.GetResourceName().Get(), src.N(), src.GetFramesAreHorizontal(), (GetRoundedScreenScale() == 1 && GetDrawScale() > 1.) ? 2 : 0 /* ??? */);
   return LoadBitmap(src.GetResourceName().Get(), src.N(), src.GetFramesAreHorizontal(), GetRoundedScreenScale());
@@ -1718,6 +1724,8 @@ IBitmap IGraphics::LoadBitmap(const char* name, int nStates, bool framesAreHoriz
 
     // Protection from searching for non-existent bitmaps (e.g. typos in config.h or .rc)
     assert(pAPIBitmap && "Bitmap not found");
+    if (pAPIBitmap == nullptr)
+      return IBitmap();
 
     // Scale or retain if needed (N.B. - scaling retains in the cache)
     if (pAPIBitmap->GetScale() != targetScale)
@@ -1769,6 +1777,8 @@ IBitmap IGraphics::LoadBitmap(const char *name, const void *pData, int dataSize,
     // Protection from searching for non-existent bitmaps (e.g. typos in config.h or .rc)
     // Also protects from invalid bitmap data.
     assert(pAPIBitmap && "Bitmap not found");
+    if (pAPIBitmap == nullptr)
+      return IBitmap();
 
     // Scale or retain if needed (N.B. - scaling retains in the cache)
     if (pAPIBitmap->GetScale() != targetScale)
@@ -1786,18 +1796,27 @@ IBitmap IGraphics::LoadBitmap(const char *name, const void *pData, int dataSize,
 
 void IGraphics::ReleaseBitmap(const IBitmap &bitmap)
 {
+  if (!bitmap.IsValid())
+    return;
+
   StaticStorage<APIBitmap>::Accessor storage(sBitmapCache);
   storage.Remove(bitmap.GetAPIBitmap());
 }
 
 void IGraphics::RetainBitmap(const IBitmap& bitmap, const char* cacheName)
 {
+  if (!bitmap.IsValid())
+    return;
+
   StaticStorage<APIBitmap>::Accessor storage(sBitmapCache);
   storage.Add(bitmap.GetAPIBitmap(), cacheName, bitmap.GetScale());
 }
 
 IBitmap IGraphics::ScaleBitmap(const IBitmap& inBitmap, const char* name, int scale)
 {
+  if (!inBitmap.IsValid())
+    return IBitmap();
+
   int screenScale = GetRoundedScreenScale();
   float drawScale = GetDrawScale();
 
@@ -1808,6 +1827,9 @@ IBitmap IGraphics::ScaleBitmap(const IBitmap& inBitmap, const char* name, int sc
   StartLayer(nullptr, bounds, true);
   DrawBitmap(inBitmap, bounds, 0, 0, nullptr);
   ILayerPtr layer = EndLayer();
+  if (!layer || !layer->mBitmap)
+    return IBitmap();
+
   IBitmap outBitmap = IBitmap(layer->mBitmap.release(), inBitmap.N(), inBitmap.GetFramesAreHorizontal(), name);
   RetainBitmap(outBitmap, name);
 
@@ -2351,6 +2373,9 @@ void IGraphics::ClearGestureRegions()
 
 void IGraphics::DrawRotatedBitmap(const IBitmap& bitmap, float destCtrX, float destCtrY, double angle, const IBlend* pBlend)
 {
+  if (bitmap.GetAPIBitmap() == nullptr)
+    return;
+
   float width = bitmap.W() / bitmap.GetDrawScale();
   float height = bitmap.H() / bitmap.GetDrawScale();
   
@@ -2726,6 +2751,9 @@ void IGraphics::PathClipRegion(const IRECT r)
 
 void IGraphics::DrawFittedBitmap(const IBitmap& bitmap, const IRECT& bounds, const IBlend* pBlend)
 {
+  if (bitmap.GetAPIBitmap() == nullptr || bitmap.W() <= 0 || bitmap.H() <= 0)
+    return;
+
   PathTransformSave();
   PathTransformTranslate(bounds.L, bounds.T);
   IRECT newBounds(0., 0., static_cast<float>(bitmap.W()), static_cast<float>(bitmap.H()));

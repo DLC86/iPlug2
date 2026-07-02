@@ -492,6 +492,10 @@ void IGraphicsSkia::EndFrame()
 
 void IGraphicsSkia::DrawBitmap(const IBitmap& bitmap, const IRECT& dest, int srcX, int srcY, const IBlend* pBlend)
 {
+  APIBitmap* pAPIBitmap = bitmap.GetAPIBitmap();
+  if (pAPIBitmap == nullptr)
+    return;
+
   SkPaint p;
   
   p.setAntiAlias(true);
@@ -499,7 +503,9 @@ void IGraphicsSkia::DrawBitmap(const IBitmap& bitmap, const IRECT& dest, int src
   if (pBlend)
     p.setAlpha(Clip(static_cast<int>(pBlend->mWeight * 255), 0, 255));
     
-  SkiaDrawable* image = bitmap.GetAPIBitmap()->GetBitmap();
+  SkiaDrawable* image = pAPIBitmap->GetBitmap();
+  if (image == nullptr)
+    return;
 
   double scale1 = 1.0 / (bitmap.GetScale() * bitmap.GetDrawScale());
   double scale2 = bitmap.GetScale() * bitmap.GetDrawScale();

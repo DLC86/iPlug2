@@ -734,6 +734,9 @@ public:
    * @param g The IGraphics context */
   void DrawBitmap(IGraphics& g)
   {
+    if (!mBitmap.IsValid())
+      return;
+
     int i = 1;
 
     if (mBitmap.N() > 1)
