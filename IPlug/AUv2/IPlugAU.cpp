@@ -929,6 +929,9 @@ OSStatus IPlugAU::GetProperty(AudioUnitPropertyID propID, AudioUnitScope scope, 
           AudioUnitCocoaViewInfo* pViewInfo = (AudioUnitCocoaViewInfo*) pData;
           CFStrLocal bundleID(mBundleID.Get());
           CFBundleRef pBundle = CFBundleGetBundleWithIdentifier(bundleID.Get());
+          if (pBundle == nullptr)
+            return kAudioUnitErr_InvalidProperty;
+
           CFURLRef url = CFBundleCopyBundleURL(pBundle);
           pViewInfo->mCocoaAUViewBundleLocation = url;
           pViewInfo->mCocoaAUViewClass[0] = CFStringCreateWithCString(0, mCocoaViewFactoryClassName.Get(), kCFStringEncodingUTF8);

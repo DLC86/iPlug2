@@ -73,7 +73,12 @@ void BundleResourcePath(WDL_String& path, PluginIDType bundleID)
   @autoreleasepool
   {
     NSBundle* pBundle = [NSBundle bundleWithIdentifier:[NSString stringWithCString:bundleID encoding:NSUTF8StringEncoding]];
+    if (!pBundle)
+      return;
+
     NSString* pResPath = [pBundle resourcePath];
+    if (!pResPath)
+      return;
     
     path.Set([pResPath UTF8String]);
   }

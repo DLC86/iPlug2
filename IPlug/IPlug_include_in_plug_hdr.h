@@ -94,17 +94,21 @@ BEGIN_IPLUG_NAMESPACE
 using Plugin = PLUGIN_API_BASE;
 END_IPLUG_NAMESPACE
 
+#ifndef BUNDLE_ID_NAME
+  #define BUNDLE_ID_NAME BUNDLE_NAME
+#endif
+
 #ifdef OS_WIN
   #define EXPORT __declspec(dllexport)
   #define BUNDLE_ID ""
 #elif defined OS_MAC
-  #define BUNDLE_ID BUNDLE_DOMAIN "." BUNDLE_MFR "." API_EXT "." BUNDLE_NAME API_EXT2
+  #define BUNDLE_ID BUNDLE_DOMAIN "." BUNDLE_MFR "." API_EXT "." BUNDLE_ID_NAME API_EXT2
   #define EXPORT __attribute__ ((visibility("default")))
 #elif defined OS_IOS
-  #define BUNDLE_ID BUNDLE_DOMAIN "." BUNDLE_MFR "." BUNDLE_NAME API_EXT2
+  #define BUNDLE_ID BUNDLE_DOMAIN "." BUNDLE_MFR "." BUNDLE_ID_NAME API_EXT2
   #define EXPORT __attribute__ ((visibility("default")))
 #elif defined OS_LINUX
-  #define BUNDLE_ID BUNDLE_DOMAIN "." BUNDLE_MFR "." API_EXT "." BUNDLE_NAME API_EXT2
+  #define BUNDLE_ID BUNDLE_DOMAIN "." BUNDLE_MFR "." API_EXT "." BUNDLE_ID_NAME API_EXT2
   #define EXPORT __attribute__ ((visibility("default")))
 #elif defined OS_WEB
   #define BUNDLE_ID ""

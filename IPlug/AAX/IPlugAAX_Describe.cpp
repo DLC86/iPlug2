@@ -20,7 +20,10 @@
 #include "AAX_Assert.h"
 
 #ifndef BUNDLE_ID
-#define BUNDLE_ID BUNDLE_DOMAIN "." BUNDLE_MFR ".aax." BUNDLE_NAME
+  #ifndef BUNDLE_ID_NAME
+    #define BUNDLE_ID_NAME BUNDLE_NAME
+  #endif
+  #define BUNDLE_ID BUNDLE_DOMAIN "." BUNDLE_MFR ".aax." BUNDLE_ID_NAME
 #endif
 
 using namespace iplug;
