@@ -229,6 +229,22 @@ int IPlugAPPHost::GetAudioDeviceIdx(const char* deviceNameToTest) const
   return -1;
 }
 
+int IPlugAPPHost::GetFallbackAudioDevice(ERoute direction) const
+{
+  const auto& deviceList = direction == ERoute::kInput ? mAudioInputDevs : mAudioOutputDevs;
+  const int32_t defaultDevice = direction == ERoute::kInput ? mDefaultInputDev : mDefaultOutputDev;
+
+  if (defaultDevice >= 0)
+  {
+    const auto defaultIt = std::find(deviceList.begin(), deviceList.end(), static_cast<uint32_t>(defaultDevice));
+
+    if (defaultIt != deviceList.end())
+      return defaultDevice;
+  }
+
+  return deviceList.empty() ? -1 : static_cast<int>(deviceList.front());
+}
+
 int IPlugAPPHost::GetMIDIPortNumber(ERoute direction, const char* nameToTest) const
 {
   int start = 1;
@@ -276,6 +292,8 @@ void IPlugAPPHost::ProbeAudioIO()
   mAudioInputDevs.clear();
   mAudioOutputDevs.clear();
   mAudioIDDevNames.clear();
+  mDefaultInputDev = -1;
+  mDefaultOutputDev = -1;
 
   uint32_t nDevices = mDAC->getDeviceCount();
 
@@ -409,10 +427,14 @@ bool IPlugAPPHost::TryToChangeAudio()
 {
   int inputID = -1;
   int outputID = -1;
+  ERoute inputDeviceDirection = ERoute::kInput;
 
 #if defined OS_WIN
   if(mState.mAudioDriverType == kDeviceASIO)
+  {
     inputID = GetAudioDeviceIdx(mState.mAudioOutDev.Get());
+    inputDeviceDirection = ERoute::kOutput;
+  }
   else
     inputID = GetAudioDeviceIdx(mState.mAudioInDev.Get());
 #elif defined OS_MAC
@@ -427,13 +449,22 @@ bool IPlugAPPHost::TryToChangeAudio()
 
   if (inputID == -1)
   {
-    if (mDefaultInputDev > -1)
+    const int fallbackInputID = GetFallbackAudioDevice(inputDeviceDirection);
+
+    if (fallbackInputID > -1)
     {
       resetToDefault = true;
-      inputID = mDefaultInputDev;
+      inputID = fallbackInputID;
 
-      if (mAudioInputDevs.size())
-        mState.mAudioInDev.Set(GetAudioDeviceName(inputID).c_str());
+      const std::string deviceName = GetAudioDeviceName(inputID);
+
+      if (inputDeviceDirection == ERoute::kOutput)
+      {
+        mState.mAudioInDev.Set(deviceName.c_str());
+        mState.mAudioOutDev.Set(deviceName.c_str());
+      }
+      else
+        mState.mAudioInDev.Set(deviceName.c_str());
     }
     else
       failedToFindDevice = true;
@@ -441,14 +472,15 @@ bool IPlugAPPHost::TryToChangeAudio()
 
   if (outputID == -1)
   {
-    if (mDefaultOutputDev > -1)
+    const int fallbackOutputID = GetFallbackAudioDevice(ERoute::kOutput);
+
+    if (fallbackOutputID > -1)
     {
       resetToDefault = true;
 
-      outputID = mDefaultOutputDev;
+      outputID = fallbackOutputID;
 
-      if (mAudioOutputDevs.size())
-        mState.mAudioOutDev.Set(GetAudioDeviceName(outputID).c_str());
+      mState.mAudioOutDev.Set(GetAudioDeviceName(outputID).c_str());
     }
     else
       failedToFindDevice = true;

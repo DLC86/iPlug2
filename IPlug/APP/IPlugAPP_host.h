@@ -196,6 +196,7 @@ public:
   
   /** find out which devices have input channels & which have output channels, add their ids to the lists */
   void ProbeAudioIO();
+  int GetFallbackAudioDevice(ERoute direction) const;
   void ProbeMidiIO();
   bool InitMidi();
   void CloseAudio();

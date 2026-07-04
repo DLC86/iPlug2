@@ -159,8 +159,8 @@ void IPlugAPPHost::PopulateDriverSpecificControls(HWND hwndDlg)
   const bool isASIO = false;
 #endif
 
-  int indevidx = 0;
-  int outdevidx = 0;
+  int indevidx = -1;
+  int outdevidx = -1;
 
   SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_RESETCONTENT,0,0);
   SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_DEV,CB_RESETCONTENT,0,0);
@@ -191,23 +191,43 @@ void IPlugAPPHost::PopulateDriverSpecificControls(HWND hwndDlg)
 
   if (isASIO)
   {
+    if (outdevidx < 0 && !mAudioOutputDevs.empty())
+      outdevidx = 0;
+
     indevidx = outdevidx;
 
-    if (!mAudioOutputDevs.empty())
+    if (outdevidx >= 0 && !mAudioOutputDevs.empty())
     {
       const std::string deviceName = GetAudioDeviceName(mAudioOutputDevs[outdevidx]);
       mState.mAudioInDev.Set(deviceName.c_str());
       mState.mAudioOutDev.Set(deviceName.c_str());
     }
   }
+  else
+  {
+    if (indevidx < 0 && !mAudioInputDevs.empty())
+    {
+      indevidx = 0;
+      mState.mAudioInDev.Set(GetAudioDeviceName(mAudioInputDevs[indevidx]).c_str());
+    }
 
-  SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_SETCURSEL, indevidx, 0);
-  SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_DEV,CB_SETCURSEL, outdevidx, 0);
+    if (outdevidx < 0 && !mAudioOutputDevs.empty())
+    {
+      outdevidx = 0;
+      mState.mAudioOutDev.Set(GetAudioDeviceName(mAudioOutputDevs[outdevidx]).c_str());
+    }
+  }
+
+  if (indevidx >= 0)
+    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_IN_DEV,CB_SETCURSEL, indevidx, 0);
+
+  if (outdevidx >= 0)
+    SendDlgItemMessage(hwndDlg,IDC_COMBO_AUDIO_OUT_DEV,CB_SETCURSEL, outdevidx, 0);
 
   RtAudio::DeviceInfo inputDevInfo;
   RtAudio::DeviceInfo outputDevInfo;
 
-  if (isASIO && !mAudioOutputDevs.empty())
+  if (isASIO && outdevidx >= 0 && !mAudioOutputDevs.empty())
   {
     // Use the exact selected ASIO driver for both channel lists and sample rates.
     outputDevInfo = mDAC->getDeviceInfo(mAudioOutputDevs[outdevidx]);
@@ -217,13 +237,13 @@ void IPlugAPPHost::PopulateDriverSpecificControls(HWND hwndDlg)
   }
   else
   {
-    if (!mAudioInputDevs.empty())
+    if (indevidx >= 0 && !mAudioInputDevs.empty())
     {
       inputDevInfo = mDAC->getDeviceInfo(mAudioInputDevs[indevidx]);
       PopulateAudioInputList(hwndDlg, &inputDevInfo);
     }
 
-    if (!mAudioOutputDevs.empty())
+    if (outdevidx >= 0 && !mAudioOutputDevs.empty())
     {
       outputDevInfo = mDAC->getDeviceInfo(mAudioOutputDevs[outdevidx]);
       PopulateAudioOutputList(hwndDlg, &outputDevInfo);
@@ -353,10 +373,16 @@ WDL_DLGRET IPlugAPPHost::PreferencesDlgProc(HWND hwndDlg, UINT uMsg, WPARAM wPar
   AppState& mActiveState = _this->mActiveState;
 
   auto getComboString = [&](WDL_String& str, int item, WPARAM idx) {
-    std::string tempString;
-    long len = (long) SendDlgItemMessage(hwndDlg, item, CB_GETLBTEXTLEN, idx, 0) + 1;
-    tempString.reserve(len);
-    SendDlgItemMessage(hwndDlg, item, CB_GETLBTEXT, idx, (LPARAM) tempString.data());
+    if (idx == static_cast<WPARAM>(CB_ERR))
+      return;
+
+    const LRESULT textLen = SendDlgItemMessage(hwndDlg, item, CB_GETLBTEXTLEN, idx, 0);
+
+    if (textLen == CB_ERR)
+      return;
+
+    std::string tempString(static_cast<size_t>(textLen) + 1, '\0');
+    SendDlgItemMessage(hwndDlg, item, CB_GETLBTEXT, idx, (LPARAM) &tempString[0]);
     str.Set(tempString.c_str());
   };
   
