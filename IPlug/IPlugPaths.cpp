@@ -305,6 +305,128 @@ EResourceLocation LocateResource(const char* name, const char* type, WDL_String&
   return EResourceLocation::kNotFound;
 }
 
+#elif defined OS_LINUX
+#pragma mark - OS_LINUX
+
+#include <unistd.h>
+#include <cstdlib>
+#include <cstring>
+
+void HostPath(WDL_String& path, const char* bundleID)
+{
+  char buf[1024] = {0};
+  ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+  if (len > 0)
+  {
+    buf[len] = '\0';
+    path.Set(buf);
+  }
+  else
+  {
+    path.Set("");
+  }
+}
+
+void PluginPath(WDL_String& path, PluginIDType pExtra)
+{
+  path.Set("");
+}
+
+void BundleResourcePath(WDL_String& path, PluginIDType pExtra)
+{
+  path.Set("");
+}
+
+void DesktopPath(WDL_String& path)
+{
+  const char* home = std::getenv("HOME");
+  if (home && strlen(home) > 0)
+  {
+    path.SetFormatted(1024, "%s/Desktop", home);
+  }
+  else
+  {
+    path.Set("");
+  }
+}
+
+void UserHomePath(WDL_String& path)
+{
+  const char* home = std::getenv("HOME");
+  if (home)
+    path.Set(home);
+  else
+    path.Set("");
+}
+
+void AppSupportPath(WDL_String& path, bool isSystem)
+{
+  if (isSystem)
+  {
+    path.Set("/var/lib");
+  }
+  else
+  {
+    const char* configHome = std::getenv("XDG_CONFIG_HOME");
+    if (configHome && strlen(configHome) > 0)
+    {
+      path.Set(configHome);
+    }
+    else
+    {
+      const char* home = std::getenv("HOME");
+      if (home && strlen(home) > 0)
+        path.SetFormatted(1024, "%s/.config", home);
+      else
+        path.Set("");
+    }
+  }
+}
+
+void VST3PresetsPath(WDL_String& path, const char* mfrName, const char* pluginName, bool isSystem)
+{
+  if (isSystem)
+  {
+    path.SetFormatted(1024, "/usr/share/vst3/presets/%s/%s", mfrName, pluginName);
+  }
+  else
+  {
+    const char* home = std::getenv("HOME");
+    if (home && strlen(home) > 0)
+      path.SetFormatted(1024, "%s/.vst3/presets/%s/%s", home, mfrName, pluginName);
+    else
+      path.Set("");
+  }
+}
+
+void INIPath(WDL_String& path, const char* pluginName)
+{
+  AppSupportPath(path, false);
+  if (path.GetLength() > 0)
+    path.AppendFormatted(1024, "/%s", pluginName);
+}
+
+void WebViewCachePath(WDL_String& path)
+{
+  path.Set("");
+}
+
+EResourceLocation LocateResource(const char* name, const char* type, WDL_String& result, const char*, void*, const char*)
+{
+  if (CStringHasContents(name))
+  {
+    result.Set(name);
+    return EResourceLocation::kAbsolutePath;
+  }
+  return EResourceLocation::kNotFound;
+}
+
+const void* LoadWinResource(const char* resID, const char* type, int& sizeInBytes, void* pHInstance)
+{
+  sizeInBytes = 0;
+  return nullptr;
+}
+
 #endif
 
 END_IPLUG_NAMESPACE
