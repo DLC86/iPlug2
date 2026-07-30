@@ -100,9 +100,10 @@ tresult PLUGIN_API IPlugVST3Controller::setParamNormalized(ParamID tag, ParamVal
 
 tresult PLUGIN_API IPlugVST3Controller::getMidiControllerAssignment(int32 busIndex, int16 midiChannel, CtrlNumber midiCCNumber, ParamID& tag)
 {
-  if (busIndex == 0 && midiChannel < VST3_NUM_CC_CHANS)
+  static constexpr int kMIDIParamCountPerChannel = Steinberg::Vst::ControllerNumbers::kCtrlProgramChange + 1;
+  if (busIndex == 0 && midiChannel < VST3_NUM_CC_CHANS && midiCCNumber < kMIDIParamCountPerChannel)
   {
-    tag = kMIDICCParamStartIdx + (midiChannel * kCountCtrlNumber) + midiCCNumber;
+    tag = kMIDICCParamStartIdx + (midiChannel * kMIDIParamCountPerChannel) + midiCCNumber;
     return kResultTrue;
   }
 
