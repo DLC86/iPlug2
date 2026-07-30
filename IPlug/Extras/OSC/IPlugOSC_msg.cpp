@@ -232,31 +232,35 @@ void OscMessageRead::DebugDump(const char* label, char* dump, int dumplen)
   const char* t=m_msg_ptr+n;
   if (*t == ',')
   {    
-    snprintf(dump+strlen(dump), MAX_OSC_MSG_LEN, " [%s]", t+1);
+    int curLen = (int)strlen(dump);
+    snprintf(dump + curLen, MAX_OSC_MSG_LEN - curLen, " [%s]", t+1);
 
     n += pad4((int) strlen(t));
 
     const char* a=m_msg_ptr+n;
     while (*t++)
     {  
+      curLen = (int)strlen(dump);
+      int rem = MAX_OSC_MSG_LEN - curLen;
+      if (rem <= 0) break;
       if (*t == 'i')
       {
-        snprintf(dump+strlen(dump), MAX_OSC_MSG_LEN, " %d", *(int*)a);
+        snprintf(dump + curLen, rem, " %d", *(int*)a);
         a += sizeof(int);
       }
       else if (*t == 'f')
       {
-        snprintf(dump+strlen(dump), MAX_OSC_MSG_LEN, " %f", *(float*)a);
+        snprintf(dump + curLen, rem, " %f", *(float*)a);
         a += sizeof(float);
       }
       else if (*t == 's')
       {
-        snprintf(dump + (int) strlen(dump), MAX_OSC_MSG_LEN, " \"%s\"", a);
+        snprintf(dump + curLen, rem, " \"%s\"", a);
         a += pad4((int) strlen(a));
       }
       else
       {
-        snprintf(dump+strlen(dump), MAX_OSC_MSG_LEN, " %c:(unknown argument type)", *t);
+        snprintf(dump + curLen, rem, " %c:(unknown argument type)", *t);
         break;
       }
     }
